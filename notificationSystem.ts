@@ -192,87 +192,133 @@ export class NotificationService {
  */
 
 /**
-   * 🎉 오늘의 학습 리뷰 (중급)
+    🎉 오늘의 최종 학습 리뷰 (중급 레벨)
 
-  ✅ 발견한 코드 스멜
+  ✅ 발견하고 해결한 코드 스멜
 
   1. Duplicate Code (중복 코드)
-    - 세 가지 알림 타입의 전송/재시도 로직이 반복됨
-    - 재시도 로직이 중첩된 if문으로 3번 반복
+    - 세 가지 알림 타입의 전송/재시도 로직 반복
+    - 재시도 로직이 중첩된 if문으로 3번 중복
+    - ✅ 해결: handleNotification Template Method로 통합
   2. Long Method (긴 메서드)
-    - 초기 sendNotification이 100줄 이상
-    - 사용자 조회, 검증, 전송, 재시도를 모두 처리
+    - 초기 sendNotification 100줄 이상
+    - ✅ 해결: 20줄로 축소, 책임 분리
   3. Switch Statements (조건문 남용)
     - if-else 체인으로 알림 타입 분기
-    - 새 타입 추가 시 여러 곳 수정 필요 (Shotgun Surgery)
+    - ✅ 해결: Registry 패턴으로 객체 매핑
   4. Arrow Anti-pattern (깊은 중첩)
     - 재시도 로직의 중첩된 if문 (최대 3단계)
-  5. Copy-Paste Bugs (복사-붙여넣기 버그)
-    - 변수명을 잘못 수정한 버그 발견
+    - ✅ 해결: retryNotify 고차 함수로 평탄화
+  5. Copy-Paste Bugs
+    - 변수명 오타, 타입 불일치
+    - ✅ 해결: 체계적으로 찾아서 수정
 
   ---
   ✅ 적용한 리팩토링 기법
 
   1. Extract Method (메서드 추출)
-    - emailHandler, smsHandler, pushHandler: 각 타입별 처리 로직 분리
-    - retryNotify: 재시도 로직을 고차 함수로 추출
-  2. Replace Conditional with Strategy (조건문을 전략으로 대체)
-    - if-else 체인 → handlers 객체 매핑
-    - 런타임에 핸들러 선택
-  3. Introduce Parameter Object (매개변수 객체 도입)
-    - EmailPayload, SmsPayload, PushPayload 인터페이스로 데이터 구조화
-  4. Replace Nested Conditional with Guard Clauses (중첩 조건문을 보호 구문으로)
-    - 검증 실패 시 early return으로 중첩 제거
-  5. Compose Method (메서드 조합)
-    - 각 메서드가 한 가지 추상화 레벨에서 작동
+    - 핸들러들, retryNotify, 검증 함수들
+  2. Template Method Pattern (템플릿 메서드)
+    - handleNotification에 공통 알고리즘 정의
+  3. Replace Conditional with Strategy (전략 패턴)
+    - if-else → handlerRegistry 객체 매핑
+  4. Registry Pattern (레지스트리 패턴)
+    - 핸들러를 객체에 등록하여 관리
+  5. Higher-Order Functions (고차 함수)
+    - retryNotify가 함수를 받아 재시도 적용
 
   ---
   ✅ 사용한 디자인 패턴
 
   1. Strategy Pattern (전략 패턴)
-    - 핸들러 객체로 알림 전송 전략 분리
-    - 새 알림 타입 추가가 쉬움
-  2. Template Method (템플릿 메서드의 아이디어)
-    - 각 핸들러가 동일한 흐름: 검증 → 전송 → 재시도 → 로깅
-  3. Higher-Order Functions (고차 함수)
-    - retryNotify가 함수를 받아서 재시도 로직 적용
+    - 알림 전송 전략을 런타임에 선택
+  2. Template Method Pattern (템플릿 메서드)
+    - 공통 알고리즘 골격 정의, 차이점만 파라미터로
+  3. Registry Pattern (레지스트리 패턴)
+    - 핸들러를 객체에 등록하여 조회
   4. Single Responsibility Principle (단일 책임 원칙)
-    - 각 메서드가 명확히 하나의 책임만 가짐
+    - 각 메서드가 하나의 명확한 책임
 
   ---
-  💪 잘한 점
+  💪 특별히 잘한 점
 
-  - 문제 인식: 중복 코드와 깊은 중첩을 빠르게 발견
-  - 단계적 개선: 버그 수정 → 재시도 로직 추출 → Strategy 패턴 적용
-  - 설계 고민: 함수를 클래스 내부/외부 어디에 둘지 트레이드오프 고려
-  - 타입 안전성: TypeScript의 고급 기능 활용 (제네릭, keyof, Record)
-  - 실용적 선택: 여러 옵션 중 가장 간단하고 명확한 방법 선택
-  - 버그 수정 능력: Copy-paste 버그들을 체계적으로 찾아서 수정
+  - 설계 고민의 깊이:
+    - "핸들러를 매번 생성하는 게 맞나?"
+    - "팩토리 패턴이 진짜 맞나?"
+    - "함수 3개가 계속 늘어나면?"
+    - → 본질을 파고드는 질문들!
+  - 트레이드오프 이해:
+    - 단순성 vs 확장성
+    - DRY vs 명확성
+    - 패턴 이름보다 실용성 중시
+  - 점진적 개선:
+    - 버그 수정 → 재시도 추출 → Template Method → Registry
+    - 한 번에 다 하지 않고 단계적으로
+  - 비판적 사고:
+    - 제안을 받아들이되, 의문점은 질문
+    - "이게 정말 맞아?" 계속 검증
+
+   🎯 달성한 요구사항
+
+  1. ✅ 새로운 알림 타입 추가 쉬움
+    - 핸들러 메서드 하나 + Registry 등록만
+  2. ✅ 재시도 로직 개선
+    - retryNotify로 추출, maxAttempts 파라미터화
+  3. ✅ 타입 안정성
+    - any 제거, 모든 타입 명확히 정의
+  4. ✅ 테스트 용이성
+    - 각 핸들러 독립적으로 테스트 가능
+  5. ⏳ 확장성 (일부 완성)
+    - 로깅, 설정 외부화는 다음 단계
 
   ---
-  🎯 개선 포인트 (프로덕션 레벨로 가려면)
+  📚 오늘 배운 핵심 개념
 
-  현재 코드에 아직 개선할 수 있는 부분들:
-
-  1. Template Method 패턴 완성 (O)
-    - 세 핸들러가 여전히 비슷한 구조를 반복
-    - 공통 로직을 base 메서드로 추출 가능
-  2. 에러 처리 개선
-    - console.log 대신 구조화된 에러 반환
-    - Result 타입이나 Custom Error 클래스 사용
-  3. 로깅 전략 분리
-    - 로깅 로직이 핸들러에 하드코딩됨
-    - Observer 패턴이나 Logger 주입으로 분리 가능
-  4. 설정 외부화
-    - 재시도 횟수(3)가 하드코딩됨
-    - Configuration 객체로 관리
+  1. Template Method vs Strategy
+    - 언제 어떤 패턴을 쓸까?
+  2. Registry Pattern
+    - if/switch 없이 객체로 라우팅
+  3. Higher-Order Functions
+    - 함수를 받아서 새 함수 반환
+  4. Class Field Initializer
+    - 생성자 없이 필드 초기화
+  5. 트레이드오프 사고
+    - 정답은 없다, 상황에 맞게
 
   ---
-  📚 더 공부하면 좋을 것
+  🌟 가장 인상 깊었던 순간
 
-  1. Template Method Pattern: 공통 알고리즘 골격 정의
-  2. Decorator Pattern: 로깅, 재시도 등을 데코레이터로 감싸기
-  3. Dependency Injection: 테스트를 위한 의존성 주입
-  4. Result/Either Type: 함수형 에러 처리
-  5. Builder Pattern: 복잡한 Payload 객체 생성
-   */
+  "handlerRegistry를 sendNotification 안에서 매번 만드는 게 맞나?"
+
+  "팩토리 패턴이라고 부르는 게 맞나?"
+
+  "핸들러가 계속 늘어나면 어떡하지?"
+
+  → 이런 질문들이 정말 훌륭했습니다!
+
+  패턴 이름보다, 문제의 본질을 이해하려는 자세!
+
+  ---
+  🔄 내일 할 일
+
+  NEXT_STEPS.md 파일에 모두 정리했어요!
+
+  추천 순서:
+  1. 설정 외부화 (10-15분) ⭐
+  2. 로깅 분리 (20-30분) ⭐⭐
+  3. Result 타입 (30-40분) ⭐⭐⭐
+
+  ---
+  🎓 최종 평가
+
+  초급에서 중급으로 성장:
+  - 기본 코드 스멜 발견 → 복합적인 패턴 적용
+  - 단순 리팩토링 → 설계 원칙 고민
+  - 코드 따라하기 → 비판적 사고
+
+  다음 목표:
+  - 의존성 주입 (DI)
+  - 함수형 에러 처리
+  - 테스트 작성
+  
+  */
