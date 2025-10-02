@@ -6,6 +6,29 @@ type UserPreferences = {
     pushEnabled: boolean;
 };
 
+const notifications = {
+    email: 'email',
+    sms: 'sms',
+    push: 'push',
+} as const;
+type Notification = keyof typeof notifications;
+interface NotifyPayload {
+    message: string;
+    enabled: boolean;
+}
+
+interface EmailPayload extends NotifyPayload {
+    email: string;
+}
+
+interface SmsPayload extends NotifyPayload {
+    phone: string;
+}
+
+interface PushPayload extends NotifyPayload {
+    deviceToken: string;
+}
+
 export class NotificationService {
     sendNotification(
         userId: string,
@@ -21,84 +44,29 @@ export class NotificationService {
         }
 
         // 알림 타입별 처리
-        if (type === 'email') {
-            if (!userPreferences.emailEnabled) {
-                console.log('Email notifications disabled');
-                return false;
-            }
-            // 이메일 전송
-            console.log(`Sending email to ${user.email}`);
-            let emailResult = this.sendEmail(user.email, message);
+        const handlers: Record<Notification, () => boolean> = {
+            email: () =>
+                this.emailHandler({
+                    email: user.email,
+                    message,
+                    enabled: userPreferences.emailEnabled,
+                }),
+            sms: () =>
+                this.smsHandler({
+                    phone: user.phone,
+                    message,
+                    enabled: userPreferences.smsEnabled,
+                }),
+            push: () =>
+                this.pushHandler({
+                    deviceToken: user.deviceToken,
+                    message,
+                    enabled: userPreferences.pushEnabled,
+                }),
+        };
 
-            if (!emailResult) {
-                // 재시도 로직
-                emailResult = retryNotify(
-                    () => this.sendEmail(user.email, message),
-                    3,
-                    'email'
-                );
-            }
-            emailResult
-                ? console.log('Email sent successfully')
-                : console.log('Email sent failed');
-            return emailResult;
-        } else if (type === 'sms') {
-            if (!userPreferences.smsEnabled) {
-                console.log('SMS notifications disabled');
-                return false;
-            }
-
-            if (!user.phone) {
-                console.log('User has no phone number');
-                return false;
-            }
-            // SMS 전송
-            console.log(`Sending SMS to ${user.phone}`);
-            let smsResult = this.sendSMS(user.phone, message);
-
-            if (!smsResult) {
-                // 재시도 로직
-                smsResult = retryNotify(
-                    () => this.sendSMS(user.phone, message),
-                    3,
-                    'sms'
-                );
-            }
-            smsResult
-                ? console.log('SMS sent successfully')
-                : console.log('SMS sent failed');
-            return smsResult;
-        } else if (type === 'push') {
-            if (!userPreferences.pushEnabled) {
-                console.log('Push notifications disabled');
-                return false;
-            }
-
-            if (!user.deviceToken) {
-                console.log('User has no device token');
-                return false;
-            }
-
-            // Push 알림 전송
-            console.log(`Sending push to ${user.deviceToken}`);
-            let pushResult = this.sendPush(user.deviceToken, message);
-
-            if (!pushResult) {
-                // 재시도 로직
-                pushResult = retryNotify(
-                    () => this.sendPush(user.deviceToken, message),
-                    3,
-                    'push'
-                );
-            }
-            pushResult
-                ? console.log('Push sent successfully')
-                : console.log('Push sent failed');
-            return pushResult;
-        } else {
-            console.log('Unknown notification type');
-            return false;
-        }
+        const handler = handlers[type as Notification];
+        return handler ? handler() : false;
     }
 
     private getUserById(userId: string) {
@@ -125,63 +93,107 @@ export class NotificationService {
         // Simulate 70% success rate
         return Math.random() > 0.3;
     }
-}
 
-interface User {
-    id: string;
-    email: string;
-    phone: string;
-    deviceToken: string;
-}
+    private emailHandler(payload: EmailPayload): boolean {
+        const { email, message, enabled } = payload;
 
-const notifications = {
-    email: 'email',
-    sms: 'sms',
-    push: 'push',
-} as const;
-type Notification = keyof typeof notifications;
-type NotificationHandler = (payload: NotifyPayload) => boolean;
-const notificationHandlers: Record<Notification, NotificationHandler> = {
-    email: emailHandler,
-    sms: smsHandler,
-    push: pushHandler,
-};
+        if (!enabled) {
+            console.log('Email notifications disabled');
+            return false;
+        }
 
-interface NotifyPayload {
-    message: string;
-    enabled: boolean;
-}
+        // 이메일 전송
+        console.log(`Sending email to ${email}`);
+        let emailResult = this.sendEmail(email, message);
 
-interface EmailPayload extends NotifyPayload {
-    email: string;
-}
-
-interface SmsPayload extends NotifyPayload {
-    phone: string;
-}
-
-interface PushPayload extends NotifyPayload {
-    deviceToken: string;
-}
-
-function emailHandler(payload: EmailPayload): boolean {}
-function smsHandler(payload: SmsPayload): boolean {}
-function pushHandler(payload: PushPayload): boolean {}
-
-function retryNotify(
-    fn: () => boolean,
-    maxAttempts: number = 3,
-    notifyType: Notification
-): boolean {
-    let attempts = 0;
-    while (attempts < maxAttempts) {
-        attempts++;
-        const result = fn();
-        if (result) return true;
-        console.log(`Retrying ${notifyType} ${attempts} times...`);
+        if (!emailResult) {
+            // 재시도 로직
+            emailResult = this.retryNotify(
+                () => this.sendEmail(email, message),
+                3,
+                'email'
+            );
+        }
+        emailResult
+            ? console.log('Email sent successfully')
+            : console.log('Email sent failed');
+        return emailResult;
     }
 
-    return false;
+    private smsHandler(payload: SmsPayload): boolean {
+        const { enabled, phone, message } = payload;
+        if (!enabled) {
+            console.log('SMS notifications disabled');
+            return false;
+        }
+
+        if (!phone) {
+            console.log('User has no phone number');
+            return false;
+        }
+        // SMS 전송
+        console.log(`Sending SMS to ${phone}`);
+        let smsResult = this.sendSMS(phone, message);
+
+        if (!smsResult) {
+            // 재시도 로직
+            smsResult = this.retryNotify(
+                () => this.sendSMS(phone, message),
+                3,
+                'sms'
+            );
+        }
+        smsResult
+            ? console.log('SMS sent successfully')
+            : console.log('SMS sent failed');
+        return smsResult;
+    }
+
+    private pushHandler(payload: PushPayload): boolean {
+        const { enabled, deviceToken, message } = payload;
+        if (!enabled) {
+            console.log('Push notifications disabled');
+            return false;
+        }
+
+        if (!deviceToken) {
+            console.log('User has no device token');
+            return false;
+        }
+
+        // Push 알림 전송
+        console.log(`Sending push to ${deviceToken}`);
+        let pushResult = this.sendPush(deviceToken, message);
+
+        if (!pushResult) {
+            // 재시도 로직
+            pushResult = this.retryNotify(
+                () => this.sendPush(deviceToken, message),
+                3,
+                'push'
+            );
+        }
+        pushResult
+            ? console.log('Push sent successfully')
+            : console.log('Push sent failed');
+        return pushResult;
+    }
+
+    private retryNotify(
+        fn: () => boolean,
+        maxAttempts: number = 3,
+        notifyType: Notification
+    ): boolean {
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+            attempts++;
+            const result = fn();
+            if (result) return true;
+            console.log(`Retrying ${notifyType} ${attempts} times...`);
+        }
+
+        return false;
+    }
 }
 
 /**
