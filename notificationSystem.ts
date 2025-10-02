@@ -6,28 +6,20 @@ type UserPreferences = {
     pushEnabled: boolean;
 };
 
+interface User {
+    id: string;
+    email: string;
+    phone: string;
+    deviceToken: string;
+}
+
 const notifications = {
     email: 'email',
     sms: 'sms',
     push: 'push',
 } as const;
 type Notification = keyof typeof notifications;
-interface NotifyPayload {
-    message: string;
-    enabled: boolean;
-}
-
-interface EmailPayload extends NotifyPayload {
-    email: string;
-}
-
-interface SmsPayload extends NotifyPayload {
-    phone: string;
-}
-
-interface PushPayload extends NotifyPayload {
-    deviceToken: string;
-}
+type FieldOf<T, K extends keyof T> = T[K];
 
 export class NotificationService {
     sendNotification(
@@ -46,23 +38,25 @@ export class NotificationService {
         // 알림 타입별 처리
         const handlers: Record<Notification, () => boolean> = {
             email: () =>
-                this.emailHandler({
-                    email: user.email,
-                    message,
-                    enabled: userPreferences.emailEnabled,
-                }),
+                this.handleNotification(
+                    userPreferences.emailEnabled,
+                    () => this.sendEmail(user.email, message),
+                    'email'
+                ),
             sms: () =>
-                this.smsHandler({
-                    phone: user.phone,
-                    message,
-                    enabled: userPreferences.smsEnabled,
-                }),
+                this.handleNotification(
+                    userPreferences.smsEnabled,
+                    () => this.sendSMS(user.phone, message),
+                    'sms',
+                    () => this.isValidPhoneNumber(user.phone)
+                ),
             push: () =>
-                this.pushHandler({
-                    deviceToken: user.deviceToken,
-                    message,
-                    enabled: userPreferences.pushEnabled,
-                }),
+                this.handleNotification(
+                    userPreferences.pushEnabled,
+                    () => this.sendPush(user.deviceToken, message),
+                    'push',
+                    () => this.isValidDevice(user.deviceToken)
+                ),
         };
 
         const handler = handlers[type as Notification];
@@ -94,89 +88,53 @@ export class NotificationService {
         return Math.random() > 0.3;
     }
 
-    private emailHandler(payload: EmailPayload): boolean {
-        const { email, message, enabled } = payload;
-
+    private handleNotification(
+        enabled: boolean,
+        sendFn: () => boolean, // 전송 함수
+        notificationType: Notification,
+        additionalValidation?: () => boolean // 추가 검증 (선택)
+    ): boolean {
+        // 1. 기본 검증
         if (!enabled) {
-            console.log('Email notifications disabled');
+            console.log(`${notificationType} notifications disabled`);
             return false;
         }
 
-        // 이메일 전송
-        console.log(`Sending email to ${email}`);
-        let emailResult = this.sendEmail(email, message);
-
-        if (!emailResult) {
-            // 재시도 로직
-            emailResult = this.retryNotify(
-                () => this.sendEmail(email, message),
-                3,
-                'email'
-            );
+        // 2. 추가 검증 (있으면)
+        if (additionalValidation && !additionalValidation()) {
+            return false;
         }
-        emailResult
-            ? console.log('Email sent successfully')
-            : console.log('Email sent failed');
-        return emailResult;
+        // 3. 전송 시도
+        console.log(`Sending ${notificationType}...`);
+        let result = sendFn();
+
+        // 4. 실패 시 재시도
+        if (!result) {
+            result = this.retryNotify(sendFn, 3, notificationType);
+        }
+
+        // 5. 결과 로깅
+        result
+            ? console.log(`${notificationType} sent successfully`)
+            : console.log(`${notificationType} sent failed`);
+
+        return result;
     }
 
-    private smsHandler(payload: SmsPayload): boolean {
-        const { enabled, phone, message } = payload;
-        if (!enabled) {
-            console.log('SMS notifications disabled');
-            return false;
-        }
-
-        if (!phone) {
-            console.log('User has no phone number');
-            return false;
-        }
-        // SMS 전송
-        console.log(`Sending SMS to ${phone}`);
-        let smsResult = this.sendSMS(phone, message);
-
-        if (!smsResult) {
-            // 재시도 로직
-            smsResult = this.retryNotify(
-                () => this.sendSMS(phone, message),
-                3,
-                'sms'
-            );
-        }
-        smsResult
-            ? console.log('SMS sent successfully')
-            : console.log('SMS sent failed');
-        return smsResult;
-    }
-
-    private pushHandler(payload: PushPayload): boolean {
-        const { enabled, deviceToken, message } = payload;
-        if (!enabled) {
-            console.log('Push notifications disabled');
-            return false;
-        }
-
+    private isValidDevice(deviceToken: FieldOf<User, 'deviceToken'>) {
         if (!deviceToken) {
             console.log('User has no device token');
             return false;
         }
+        return true;
+    }
 
-        // Push 알림 전송
-        console.log(`Sending push to ${deviceToken}`);
-        let pushResult = this.sendPush(deviceToken, message);
-
-        if (!pushResult) {
-            // 재시도 로직
-            pushResult = this.retryNotify(
-                () => this.sendPush(deviceToken, message),
-                3,
-                'push'
-            );
+    private isValidPhoneNumber(phone: FieldOf<User, 'phone'>) {
+        if (!phone) {
+            console.log('User has no phone number');
+            return false;
         }
-        pushResult
-            ? console.log('Push sent successfully')
-            : console.log('Push sent failed');
-        return pushResult;
+        return true;
     }
 
     private retryNotify(
