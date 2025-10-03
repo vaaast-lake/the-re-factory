@@ -68,13 +68,27 @@ const notifications = {
 type NotificationType = keyof typeof notifications;
 type FieldOf<T, K extends keyof T> = T[K];
 
+type NotificationHandlerCreator = (
+    user: User,
+    message: string,
+    prefs: UserPreferences
+) => NotificationResult<void>;
+
 export class NotificationService {
-    // Class Field Initializer)
-    private readonly handlerRegistry = {
-        email: this.emailHandler.bind(this),
-        sms: this.smsHandler.bind(this),
-        push: this.pushHandler.bind(this),
-    };
+    private readonly logger: Logger;
+    private readonly handleRegistry: Record<
+        NotificationType,
+        NotificationHandlerCreator
+    >;
+
+    constructor(logger: Logger) {
+        this.logger = logger;
+        this.handleRegistry = {
+            email: this.emailHandler.bind(this),
+            sms: this.smsHandler.bind(this),
+            push: this.pushHandler.bind(this),
+        };
+    }
 
     sendNotification(
         userId: string,
@@ -92,7 +106,7 @@ export class NotificationService {
             };
         }
 
-        const handler = this.handlerRegistry[type as NotificationType];
+        const handler = this.handleRegistry[type as NotificationType];
         if (!handler) {
             console.log('Unknown notification type');
             return { success: false, error: { code: 'UNKNOWN_TYPE', type } };
@@ -148,32 +162,29 @@ export class NotificationService {
     }
 
     private emailHandler(user: User, message: string, prefs: UserPreferences) {
-        return () =>
-            this.handleNotification(
-                prefs.emailEnabled,
-                () => this.sendEmail(user.email, message),
-                'email'
-            );
+        return this.handleNotification(
+            prefs.emailEnabled,
+            () => this.sendEmail(user.email, message),
+            'email'
+        );
     }
 
     private smsHandler(user: User, message: string, prefs: UserPreferences) {
-        return () =>
-            this.handleNotification(
-                prefs.smsEnabled,
-                () => this.sendSMS(user.phone, message),
-                'sms',
-                () => this.isValidPhoneNumber(user.phone)
-            );
+        return this.handleNotification(
+            prefs.smsEnabled,
+            () => this.sendSMS(user.phone, message),
+            'sms',
+            () => this.isValidPhoneNumber(user.phone)
+        );
     }
 
     private pushHandler(user: User, message: string, prefs: UserPreferences) {
-        return () =>
-            this.handleNotification(
-                prefs.pushEnabled,
-                () => this.sendPush(user.deviceToken, message),
-                'push',
-                () => this.isValidDevice(user.deviceToken)
-            );
+        return this.handleNotification(
+            prefs.pushEnabled,
+            () => this.sendPush(user.deviceToken, message),
+            'push',
+            () => this.isValidDevice(user.deviceToken)
+        );
     }
 
     private handleNotification(
