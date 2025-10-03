@@ -17,7 +17,7 @@ type NotificationError =
     | { code: 'DISABLED'; notificationType: NotificationType }
     | { code: 'MISSING_DEVICE_TOKEN' }
     | { code: 'MISSING_PHONE_NUMBER' }
-    | { code: 'SEND_FAILED'; attempts: number };
+    | { code: 'SEND_FAILED'; attempts: number | null };
 
 type NotificationResult<T> =
     | { success: true; value: T }
@@ -57,18 +57,21 @@ export class NotificationService {
         message: string,
         type: string,
         userPreferences: UserPreferences
-    ) {
+    ): NotificationResult<void> {
         // 사용자 정보 조회
         const user = this.getUserById(userId);
         if (!user) {
             console.log('User not found');
-            return false;
+            return {
+                success: false,
+                error: { code: 'USER_NOT_FOUND', userId },
+            };
         }
 
         const handler = this.handlerRegistry[type as NotificationType];
         if (!handler) {
             console.log('Unknown notification type');
-            return false;
+            return { success: false, error: { code: 'UNKNOWN_TYPE', type } };
         }
 
         return handler(user, message, userPreferences);
@@ -84,19 +87,40 @@ export class NotificationService {
         };
     }
 
-    private sendEmail(email: string, message: string): boolean {
+    private sendEmail(
+        email: string,
+        message: string
+    ): NotificationResult<void> {
         // Simulate 70% success rate
-        return Math.random() > 0.3;
+        if (Math.random() > 0.3) return { success: true, value: null };
+        else if (Math.random() <= 0.3)
+            return {
+                success: false,
+                error: { code: 'SEND_FAILED', attempts: null },
+            };
+        return { success: true, value: null };
     }
 
-    private sendSMS(phone: string, message: string): boolean {
+    private sendSMS(phone: string, message: string): NotificationResult<void> {
         // Simulate 70% success rate
-        return Math.random() > 0.3;
+        if (Math.random() > 0.3) return { success: true, value: null };
+        else if (Math.random() <= 0.3)
+            return {
+                success: false,
+                error: { code: 'SEND_FAILED', attempts: null },
+            };
+        return { success: true, value: null };
     }
 
-    private sendPush(token: string, message: string): boolean {
+    private sendPush(token: string, message: string): NotificationResult<void> {
         // Simulate 70% success rate
-        return Math.random() > 0.3;
+        if (Math.random() > 0.3) return { success: true, value: null };
+        else if (Math.random() <= 0.3)
+            return {
+                success: false,
+                error: { code: 'SEND_FAILED', attempts: null },
+            };
+        return { success: true, value: null };
     }
 
     private emailHandler(user: User, message: string, prefs: UserPreferences) {
@@ -130,7 +154,7 @@ export class NotificationService {
 
     private handleNotification(
         enabled: boolean,
-        sendFn: () => boolean, // 전송 함수
+        sendFn: () => NotificationResult<void>, // 전송 함수
         notificationType: NotificationType,
         additionalValidation?: () => NotificationResult<void> // 추가 검증 (선택)
     ): NotificationResult<void> {
@@ -147,23 +171,24 @@ export class NotificationService {
         if (additionalValidation) {
             const validationResult = additionalValidation();
             if (!validationResult.success) return validationResult;
-            if (validationResult.success) console.log(`Validation success`);
+            else if (validationResult.success)
+                console.log(`Validation success`);
         }
         // 3. 전송 시도
         console.log(`Sending ${notificationType}...`);
         let result = sendFn();
 
         // 4. 실패 시 재시도
-        if (!result) {
+        if (!result.success) {
             result = this.retryNotify(sendFn, 3, notificationType);
         }
 
         // 5. 결과 로깅
-        result
-            ? console.log(`${notificationType} sent successfully`)
-            : console.log(`${notificationType} sent failed`);
+        // result
+        //     ? console.log(`${notificationType} sent successfully`)
+        //     : console.log(`${notificationType} sent failed`);
 
-        return { success: true, value: null };
+        return result;
     }
 
     private isValidDevice(
@@ -193,19 +218,19 @@ export class NotificationService {
     }
 
     private retryNotify(
-        fn: () => boolean,
+        fn: () => NotificationResult<void>,
         maxAttempts: number = 3,
         notifyType: NotificationType
-    ): boolean {
+    ): NotificationResult<void> {
         let attempts = 0;
         while (attempts < maxAttempts) {
             attempts++;
             const result = fn();
-            if (result) return true;
+            if (result.success) return { success: true, value: null };
             console.log(`Retrying ${notifyType} ${attempts} times...`);
         }
 
-        return false;
+        return { success: false, error: { code: 'SEND_FAILED', attempts } };
     }
 }
 
