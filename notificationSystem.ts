@@ -68,7 +68,7 @@ const notifications = {
 type NotificationType = keyof typeof notifications;
 type FieldOf<T, K extends keyof T> = T[K];
 
-type NotificationHandlerCreator = (
+type NotificationHandler = (
     user: User,
     message: string,
     prefs: UserPreferences
@@ -78,7 +78,7 @@ export class NotificationService {
     private readonly logger: Logger;
     private readonly handleRegistry: Record<
         NotificationType,
-        NotificationHandlerCreator
+        NotificationHandler
     >;
 
     constructor(logger: Logger) {
