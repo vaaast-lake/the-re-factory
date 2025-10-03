@@ -1,5 +1,28 @@
 // 알림 시스템
 
+// TODO(human): Result 타입과 NotificationError 타입을 여기에 정의하세요
+//
+// NotificationError는 다음 5가지 에러 케이스를 포함해야 합니다:
+// 1. USER_NOT_FOUND - 사용자를 찾을 수 없음
+// 2. UNKNOWN_NOTIFICATION_TYPE - 알 수 없는 알림 타입
+// 3. NOTIFICATION_DISABLED - 알림이 비활성화됨
+// 4. VALIDATION_FAILED - 검증 실패 (전화번호 없음, 디바이스 토큰 없음 등)
+// 5. SEND_FAILED - 전송 실패 (재시도 후에도)
+//
+// Result<T> 타입은 성공/실패를 나타내는 Discriminated Union입니다
+
+type NotificationError =
+    | { code: 'USER_NOT_FOUND'; userId: string }
+    | { code: 'UNKNOWN_TYPE'; type: string }
+    | { code: 'DISABLED'; notificationType: NotificationType }
+    | { code: 'MISSING_DEVICE_TOKEN' }
+    | { code: 'MISSING_PHONE_NUMBER' }
+    | { code: 'SEND_FAILED'; attempts: number };
+
+type NotificationResult<T> =
+    | { success: true; value: T }
+    | { success: false; error: NotificationError };
+
 type UserPreferences = {
     emailEnabled: boolean;
     smsEnabled: boolean;
@@ -18,7 +41,7 @@ const notifications = {
     sms: 'sms',
     push: 'push',
 } as const;
-type Notification = keyof typeof notifications;
+type NotificationType = keyof typeof notifications;
 type FieldOf<T, K extends keyof T> = T[K];
 
 export class NotificationService {
@@ -42,7 +65,7 @@ export class NotificationService {
             return false;
         }
 
-        const handler = this.handlerRegistry[type as Notification];
+        const handler = this.handlerRegistry[type as NotificationType];
         if (!handler) {
             console.log('Unknown notification type');
             return false;
@@ -108,8 +131,8 @@ export class NotificationService {
     private handleNotification(
         enabled: boolean,
         sendFn: () => boolean, // 전송 함수
-        notificationType: Notification,
-        additionalValidation?: () => boolean // 추가 검증 (선택)
+        notificationType: NotificationType,
+        additionalValidation?: () => NotificationResult<void> // 추가 검증 (선택)
     ): boolean {
         // 1. 기본 검증
         if (!enabled) {
@@ -138,26 +161,36 @@ export class NotificationService {
         return result;
     }
 
-    private isValidDevice(deviceToken: FieldOf<User, 'deviceToken'>) {
+    private isValidDevice(
+        deviceToken: FieldOf<User, 'deviceToken'>
+    ): NotificationResult<void> {
         if (!deviceToken) {
             console.log('User has no device token');
-            return false;
+            return {
+                success: false,
+                error: { code: 'MISSING_DEVICE_TOKEN' },
+            };
         }
-        return true;
+        return { success: true, value: null };
     }
 
-    private isValidPhoneNumber(phone: FieldOf<User, 'phone'>) {
+    private isValidPhoneNumber(
+        phone: FieldOf<User, 'phone'>
+    ): NotificationResult<void> {
         if (!phone) {
             console.log('User has no phone number');
-            return false;
+            return {
+                success: false,
+                error: { code: 'MISSING_PHONE_NUMBER' },
+            };
         }
-        return true;
+        return { success: true, value: null };
     }
 
     private retryNotify(
         fn: () => boolean,
         maxAttempts: number = 3,
-        notifyType: Notification
+        notifyType: NotificationType
     ): boolean {
         let attempts = 0;
         while (attempts < maxAttempts) {
