@@ -23,6 +23,30 @@ type NotificationResult<T> =
     | { success: true; value: T }
     | { success: false; error: NotificationError };
 
+// TODO(human): Logger 인터페이스와 구현체들을 여기에 정의하세요
+//
+// 1. Logger 인터페이스 (2개 메서드: info, error)
+// 2. ConsoleLogger 클래스 (실제로 console.log/error 호출)
+// 3. SilentLogger 클래스 (아무것도 안 함, 테스트용)
+
+interface Logger {
+    info(message: string): void;
+    error(message: string): void;
+}
+
+class ConsoleLogger implements Logger {
+    error(message: string): void {
+        console.error(`[ERROR]: ${message}`);
+    }
+    info(message: string): void {
+        console.log(`[INFO]: ${message}`);
+    }
+}
+class SilentLogger implements Logger {
+    info(message: string): void {}
+    error(message: string): void {}
+}
+
 type UserPreferences = {
     emailEnabled: boolean;
     smsEnabled: boolean;
