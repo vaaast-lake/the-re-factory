@@ -133,16 +133,21 @@ export class NotificationService {
         sendFn: () => boolean, // 전송 함수
         notificationType: NotificationType,
         additionalValidation?: () => NotificationResult<void> // 추가 검증 (선택)
-    ): boolean {
+    ): NotificationResult<void> {
         // 1. 기본 검증
         if (!enabled) {
             console.log(`${notificationType} notifications disabled`);
-            return false;
+            return {
+                success: false,
+                error: { code: 'DISABLED', notificationType },
+            };
         }
 
         // 2. 추가 검증 (있으면)
-        if (additionalValidation && !additionalValidation()) {
-            return false;
+        if (additionalValidation) {
+            const validationResult = additionalValidation();
+            if (!validationResult.success) return validationResult;
+            if (validationResult.success) console.log(`Validation success`);
         }
         // 3. 전송 시도
         console.log(`Sending ${notificationType}...`);
@@ -158,7 +163,7 @@ export class NotificationService {
             ? console.log(`${notificationType} sent successfully`)
             : console.log(`${notificationType} sent failed`);
 
-        return result;
+        return { success: true, value: null };
     }
 
     private isValidDevice(
