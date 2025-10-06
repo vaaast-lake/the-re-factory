@@ -99,7 +99,7 @@ export class NotificationService {
         // 사용자 정보 조회
         const user = this.getUserById(userId);
         if (!user) {
-            console.log('User not found');
+            this.logger.error('User not found');
             return {
                 success: false,
                 error: { code: 'USER_NOT_FOUND', userId },
@@ -108,7 +108,7 @@ export class NotificationService {
 
         const handler = this.handleRegistry[type as NotificationType];
         if (!handler) {
-            console.log('Unknown notification type');
+            this.logger.error('Unknown notification type');
             return { success: false, error: { code: 'UNKNOWN_TYPE', type } };
         }
 
@@ -130,35 +130,44 @@ export class NotificationService {
         message: string
     ): NotificationResult<void> {
         // Simulate 70% success rate
-        if (Math.random() > 0.3) return { success: true, value: null };
-        else if (Math.random() <= 0.3)
+        if (Math.random() > 0.3) {
+            this.logger.info('Send Mail success');
+            return { success: true, value: null };
+        } else if (Math.random() <= 0.3) {
+            this.logger.info('Send Mail Failed');
             return {
                 success: false,
                 error: { code: 'SEND_FAILED', attempts: null },
             };
-        return { success: true, value: null };
+        }
     }
 
     private sendSMS(phone: string, message: string): NotificationResult<void> {
         // Simulate 70% success rate
-        if (Math.random() > 0.3) return { success: true, value: null };
-        else if (Math.random() <= 0.3)
+        if (Math.random() > 0.3) {
+            this.logger.info('Send SMS success');
+            return { success: true, value: null };
+        } else if (Math.random() <= 0.3) {
+            this.logger.info('Send SMS Failed');
             return {
                 success: false,
                 error: { code: 'SEND_FAILED', attempts: null },
             };
-        return { success: true, value: null };
+        }
     }
 
     private sendPush(token: string, message: string): NotificationResult<void> {
         // Simulate 70% success rate
-        if (Math.random() > 0.3) return { success: true, value: null };
-        else if (Math.random() <= 0.3)
+        if (Math.random() > 0.3) {
+            this.logger.info('Send Push success');
+            return { success: true, value: null };
+        } else if (Math.random() <= 0.3) {
+            this.logger.info('Send Push Failed');
             return {
                 success: false,
                 error: { code: 'SEND_FAILED', attempts: null },
             };
-        return { success: true, value: null };
+        }
     }
 
     private emailHandler(user: User, message: string, prefs: UserPreferences) {
@@ -195,7 +204,7 @@ export class NotificationService {
     ): NotificationResult<void> {
         // 1. 기본 검증
         if (!enabled) {
-            console.log(`${notificationType} notifications disabled`);
+            this.logger.info(`${notificationType} notifications disabled`);
             return {
                 success: false,
                 error: { code: 'DISABLED', notificationType },
@@ -206,11 +215,9 @@ export class NotificationService {
         if (additionalValidation) {
             const validationResult = additionalValidation();
             if (!validationResult.success) return validationResult;
-            else if (validationResult.success)
-                console.log(`Validation success`);
         }
         // 3. 전송 시도
-        console.log(`Sending ${notificationType}...`);
+        this.logger.info(`Sending ${notificationType}...`);
         let result = sendFn();
 
         // 4. 실패 시 재시도
@@ -219,9 +226,17 @@ export class NotificationService {
         }
 
         // 5. 결과 로깅
-        // result
-        //     ? console.log(`${notificationType} sent successfully`)
-        //     : console.log(`${notificationType} sent failed`);
+        if (result.success === true) {
+            this.logger.info('Notification success!');
+        } else if (result.success === false) {
+            if (result.error.code === 'SEND_FAILED')
+                this.logger.error(
+                    `Notification failed after ${result.error.attempts} attempts`
+                );
+            else {
+                this.logger.info(`Notification Failed: ${result.error.code}`);
+            }
+        }
 
         return result;
     }
@@ -230,7 +245,7 @@ export class NotificationService {
         deviceToken: FieldOf<User, 'deviceToken'>
     ): NotificationResult<void> {
         if (!deviceToken) {
-            console.log('User has no device token');
+            this.logger.error('User has no device token');
             return {
                 success: false,
                 error: { code: 'MISSING_DEVICE_TOKEN' },
@@ -243,7 +258,7 @@ export class NotificationService {
         phone: FieldOf<User, 'phone'>
     ): NotificationResult<void> {
         if (!phone) {
-            console.log('User has no phone number');
+            this.logger.error('User has no phone number');
             return {
                 success: false,
                 error: { code: 'MISSING_PHONE_NUMBER' },
@@ -262,7 +277,7 @@ export class NotificationService {
             attempts++;
             const result = fn();
             if (result.success) return { success: true, value: null };
-            console.log(`Retrying ${notifyType} ${attempts} times...`);
+            this.logger.info(`Retrying ${notifyType} ${attempts} times...`);
         }
 
         return { success: false, error: { code: 'SEND_FAILED', attempts } };
