@@ -227,7 +227,9 @@ class ProductFactory {
 
             default:
                 console.log('There is no Product type.');
-                break;
+                throw new Error(
+                    `Unknown product type: ${(payload as any).productType}`
+                );
         }
     }
 }
