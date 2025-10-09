@@ -4,15 +4,6 @@ type OrderResult =
     | { success: true; message: string }
     | { success: false; message: string };
 
-// interface Product {
-//     id: string;
-//     name: string;
-//     productType: ProductType;
-//     stock: number;
-//     price: number;
-//     canOrder: (quantity: number) => boolean;
-// }
-
 enum ProductType {
     Regular = 'regular',
     Limited = 'limited',
