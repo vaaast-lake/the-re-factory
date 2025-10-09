@@ -55,7 +55,7 @@ abstract class Product {
 
     abstract afterOrder(): void;
 
-    abstract getReportLine(): void;
+    abstract getReportLine(): string;
 
     isEmpty() {
         return this.stock === 0;
@@ -143,7 +143,7 @@ class LimitedProduct extends Product {
 
     getReportLine() {
         const status = this.getStock > 0 ? '판매중' : '품절';
-        return `${this.name}: ${this.stock}개 (한정판, ${status})\n`;
+        return `${this.name}: ${this.stock}개 (한정판, ${status})`;
     }
 }
 
@@ -176,7 +176,7 @@ class SubscriptionProduct extends Product {
         return { success: true, message: '' };
     }
 
-    fulfillOrder() {
+    fulfillOrder(quantity: number) {
         console.log(`구독이 신청되었습니다.`);
         return true;
     }
@@ -188,7 +188,7 @@ class SubscriptionProduct extends Product {
     }
 
     getReportLine() {
-        return `${this.name}: 구독 상품 (${this.subscriptionPeriod}개월 플랜)\n`;
+        return `${this.name}: 구독 상품 (${this.subscriptionPeriod}개월 플랜)`;
     }
 }
 
@@ -281,7 +281,7 @@ class OrderService {
         let report = '=== 재고 현황 ===\n';
 
         this.products.forEach((product) => {
-            report += product.getReportLine();
+            report += product.getReportLine() + '\n';
         });
 
         return report;
