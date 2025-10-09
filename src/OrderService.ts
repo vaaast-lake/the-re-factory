@@ -188,7 +188,7 @@ class ProductFactory {
 
     static create(
         payload: ProductDTO
-    ): RegularProduct | LimitedProduct | SubscriptionProduct {
+    ): Product {
         const { name, stock, price } = payload;
 
         switch (payload.productType) {
@@ -233,7 +233,7 @@ interface OrderItem {
 class OrderService {
     private products: Map<
         number,
-        RegularProduct | LimitedProduct | SubscriptionProduct
+        Product
     >;
 
     constructor() {
