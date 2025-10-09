@@ -50,7 +50,7 @@ abstract class Product {
         public price: number
     ) {}
 
-    abstract canOrder(quantity: number): boolean;
+    abstract canOrder(quantity: number): OrderResult;
 
     isEmpty() {
         return this.stock === 0;
@@ -88,7 +88,13 @@ class RegularProduct extends Product {
     }
 
     canOrder(quantity: number) {
-        return this.stock >= quantity;
+        if (this.getStock < quantity)
+            return {
+                success: false,
+                message: `재고 부족: ${this.name} (남은 재고: ${this.stock})`,
+            };
+
+        return { success: true, message: '' };
     }
 }
 
@@ -106,7 +112,19 @@ class LimitedProduct extends Product {
     }
 
     canOrder(quantity: number) {
-        return this.stock >= quantity;
+        const now = new Date();
+        if (this.releaseDate > now)
+            return {
+                success: false,
+                message: `한정판은 ${this.releaseDate.toLocaleDateString()}부터 구매 가능합니다`,
+            };
+        else if (this.getStock < quantity)
+            return {
+                success: false,
+                message: `재고 부족: ${this.name} (남은 재고: ${this.stock})`,
+            };
+
+        return { success: true, message: '' };
     }
 }
 
@@ -124,7 +142,18 @@ class SubscriptionProduct extends Product {
     }
 
     canOrder(quantity: number) {
-        return this.stock >= quantity;
+        if (quantity > 1)
+            return {
+                success: false,
+                message: '구독 상품은 1개만 구매 가능합니다',
+            };
+        if (this.subscriptionPeriod < 1)
+            return {
+                success: false,
+                message: '구독 기간이 유효하지 않습니다',
+            };
+
+        return { success: true, message: '' };
     }
 }
 
