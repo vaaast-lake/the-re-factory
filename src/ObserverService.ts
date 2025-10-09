@@ -1,12 +1,157 @@
 // src/services/OrderService.ts
-interface Product {
-    id: string;
-    name: string;
-    type: 'regular' | 'limited' | 'subscription';
-    stock: number;
-    price: number;
-    releaseDate?: Date;
-    subscriptionPeriod?: number;
+
+type OrderResult =
+    | { success: true; message: string }
+    | { success: false; message: string };
+
+// interface Product {
+//     id: string;
+//     name: string;
+//     productType: ProductType;
+//     stock: number;
+//     price: number;
+//     canOrder: (quantity: number) => boolean;
+// }
+
+enum ProductType {
+    Regular = 'regular',
+    Limited = 'limited',
+    Subscription = 'subscription',
+}
+
+abstract class Product {
+    constructor(
+        public id: number,
+        public name: string,
+        public productType: ProductType,
+        public stock: number,
+        public price: number
+    ) {}
+
+    abstract canOrder(quantity: number): boolean;
+    abstract deductStock(quantity: number): boolean;
+    abstract addStock(quantity: number): void;
+}
+
+class RegularProduct extends Product {
+    constructor(
+        id: number,
+        name: string,
+        productType: ProductType,
+        stock: number,
+        price: number
+    ) {
+        super(id, name, productType, stock, price);
+    }
+
+    canOrder(quantity: number) {
+        return this.stock >= quantity;
+    }
+
+    isEmpty() {
+        return this.stock === 0;
+    }
+
+    get getStock() {
+        return this.stock;
+    }
+
+    get getId() {
+        return this.id;
+    }
+
+    deductStock(quantity: number) {
+        if (this.getStock < quantity) return false;
+
+        this.stock -= quantity;
+        return true;
+    }
+
+    addStock(quantity: number) {
+        this.stock += quantity;
+    }
+}
+
+class LimitedProduct extends Product {
+    constructor(
+        id: number,
+        name: string,
+        productType: ProductType,
+        stock: number,
+        price: number,
+        public releaseDate: Date
+    ) {
+        super(id, name, productType, stock, price);
+        this.releaseDate = releaseDate;
+    }
+
+    canOrder(quantity: number) {
+        return this.stock >= quantity;
+    }
+
+    isEmpty() {
+        return this.stock === 0;
+    }
+
+    get getStock() {
+        return this.stock;
+    }
+
+    get getId() {
+        return this.id;
+    }
+
+    deductStock(quantity: number) {
+        if (this.getStock < quantity) return false;
+
+        this.stock -= quantity;
+        return true;
+    }
+
+    addStock(quantity: number) {
+        this.stock += quantity;
+    }
+}
+
+class SubscriptionProduct extends Product {
+    constructor(
+        id: number,
+        name: string,
+        productType: ProductType,
+        stock: number,
+        price: number,
+        public subscriptionPeriod: number
+    ) {
+        super(id, name, productType, stock, price);
+        this.subscriptionPeriod = subscriptionPeriod;
+    }
+
+    canOrder(quantity: number) {
+        return this.stock >= quantity;
+    }
+
+    isEmpty() {
+        return this.stock === 0;
+    }
+
+    get getStock() {
+        return this.stock;
+    }
+
+    get getId() {
+        return this.id;
+    }
+
+    deductStock(quantity: number) {
+        if (this.getStock < quantity) return false;
+
+        this.stock -= quantity;
+        return true;
+    }
+
+    addStock(quantity: number) {
+        this.stock += quantity;
+    }
 }
 
 interface OrderItem {
@@ -22,7 +167,7 @@ class OrderService {
     }
 
     // 주문 처리
-    processOrder(items: OrderItem[]): { success: boolean; message: string } {
+    processOrder(items: OrderItem[]): OrderResult {
         for (const item of items) {
             const product = this.products.get(item.productId);
 
