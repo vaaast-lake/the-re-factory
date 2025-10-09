@@ -51,24 +51,6 @@ abstract class Product {
     ) {}
 
     abstract canOrder(quantity: number): boolean;
-    abstract deductStock(quantity: number): boolean;
-    abstract addStock(quantity: number): void;
-}
-
-class RegularProduct extends Product {
-    constructor(
-        id: number,
-        name: string,
-        productType: ProductType,
-        stock: number,
-        price: number
-    ) {
-        super(id, name, productType, stock, price);
-    }
-
-    canOrder(quantity: number) {
-        return this.stock >= quantity;
-    }
 
     isEmpty() {
         return this.stock === 0;
@@ -91,6 +73,22 @@ class RegularProduct extends Product {
 
     addStock(quantity: number) {
         this.stock += quantity;
+    }
+}
+
+class RegularProduct extends Product {
+    constructor(
+        id: number,
+        name: string,
+        productType: ProductType,
+        stock: number,
+        price: number
+    ) {
+        super(id, name, productType, stock, price);
+    }
+
+    canOrder(quantity: number) {
+        return this.stock >= quantity;
     }
 }
 
@@ -110,29 +108,6 @@ class LimitedProduct extends Product {
     canOrder(quantity: number) {
         return this.stock >= quantity;
     }
-
-    isEmpty() {
-        return this.stock === 0;
-    }
-
-    get getStock() {
-        return this.stock;
-    }
-
-    get getId() {
-        return this.id;
-    }
-
-    deductStock(quantity: number) {
-        if (this.getStock < quantity) return false;
-
-        this.stock -= quantity;
-        return true;
-    }
-
-    addStock(quantity: number) {
-        this.stock += quantity;
-    }
 }
 
 class SubscriptionProduct extends Product {
@@ -150,29 +125,6 @@ class SubscriptionProduct extends Product {
 
     canOrder(quantity: number) {
         return this.stock >= quantity;
-    }
-
-    isEmpty() {
-        return this.stock === 0;
-    }
-
-    get getStock() {
-        return this.stock;
-    }
-
-    get getId() {
-        return this.id;
-    }
-
-    deductStock(quantity: number) {
-        if (this.getStock < quantity) return false;
-
-        this.stock -= quantity;
-        return true;
-    }
-
-    addStock(quantity: number) {
-        this.stock += quantity;
     }
 }
 
