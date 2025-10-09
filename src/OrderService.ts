@@ -53,6 +53,8 @@ abstract class Product {
 
     abstract canOrder(quantity: number): OrderResult;
 
+    abstract afterOrder(): void;
+
     isEmpty() {
         return this.stock === 0;
     }
@@ -66,9 +68,6 @@ abstract class Product {
     }
 
     deductStock(quantity: number) {
-        if (this.type === ProductType.Subscription) return;
-        if (this.getStock < quantity) return false;
-
         this.stock -= quantity;
         return true;
     }
@@ -93,6 +92,11 @@ class RegularProduct extends Product {
             };
 
         return { success: true, message: '' };
+    }
+
+    afterOrder() {
+        if (this.isEmpty()) console.log(`재고 없음: ${this.name}`);
+        else console.log(`${this.name}의 남은 재고: ${this.getStock}개`);
     }
 }
 
@@ -125,6 +129,11 @@ class LimitedProduct extends Product {
 
         return { success: true, message: '' };
     }
+
+    afterOrder() {
+        if (this.isEmpty()) console.log(`한정판 품절: ${this.name}`);
+        else console.log(`${this.name}의 남은 재고: ${this.getStock}개`);
+    }
 }
 
 class SubscriptionProduct extends Product {
@@ -154,6 +163,16 @@ class SubscriptionProduct extends Product {
             };
 
         return { success: true, message: '' };
+    }
+
+    deductStock(quantity: number) {
+        return true;
+    }
+
+    afterOrder() {
+        console.log(
+            `구독 시작: ${this.name}, 기간: ${this.subscriptionPeriod}개월`
+        );
     }
 }
 
@@ -233,14 +252,7 @@ class OrderService {
             if (!product) continue;
 
             product.deductStock(item.quantity);
-
-            if (product.type === ProductType.Limited && product.getStock === 0)
-                console.log(`한정판 품절: ${product.name}`);
-
-            if (product.type === ProductType.Subscription)
-                console.log(
-                    `구독 시작: ${product.name}, 기간: ${product.subscriptionPeriod}개월`
-                );
+            product.afterOrder();
         }
 
         return { success: true, message: '주문 완료' };
