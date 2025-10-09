@@ -160,7 +160,7 @@ class SubscriptionProduct extends Product {
 class ProductFactory {
     private static nextId = 1;
 
-    static create(payload: ProductDTO) {
+    static create(payload: ProductDTO): Product {
         const { name, productType, stock, price } = payload;
 
         switch (payload.productType) {
