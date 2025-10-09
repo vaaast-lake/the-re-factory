@@ -67,7 +67,7 @@ abstract class Product {
         return this.id;
     }
 
-    deductStock(quantity: number) {
+    fulfillOrder(quantity: number) {
         this.stock -= quantity;
         return true;
     }
@@ -165,7 +165,8 @@ class SubscriptionProduct extends Product {
         return { success: true, message: '' };
     }
 
-    deductStock(quantity: number) {
+    fulfillOrder() {
+        console.log(`구독이 신청되었습니다.`);
         return true;
     }
 
@@ -251,7 +252,7 @@ class OrderService {
             const product = this.products.get(item.productId);
             if (!product) continue;
 
-            product.deductStock(item.quantity);
+            product.fulfillOrder(item.quantity);
             product.afterOrder();
         }
 
