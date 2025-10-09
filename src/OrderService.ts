@@ -42,10 +42,11 @@ type ProductDTO =
     | SubscriptionProductDTO;
 
 abstract class Product {
+    abstract readonly type: ProductType;
+
     constructor(
         public id: number,
         public name: string,
-        public productType: ProductType,
         public stock: number,
         public price: number
     ) {}
@@ -65,6 +66,7 @@ abstract class Product {
     }
 
     deductStock(quantity: number) {
+        if (this.type === ProductType.Subscription) return;
         if (this.getStock < quantity) return false;
 
         this.stock -= quantity;
@@ -77,14 +79,10 @@ abstract class Product {
 }
 
 class RegularProduct extends Product {
-    constructor(
-        id: number,
-        name: string,
-        productType: ProductType,
-        stock: number,
-        price: number
-    ) {
-        super(id, name, productType, stock, price);
+    readonly type = ProductType.Regular;
+
+    constructor(id: number, name: string, stock: number, price: number) {
+        super(id, name, stock, price);
     }
 
     canOrder(quantity: number) {
@@ -99,15 +97,16 @@ class RegularProduct extends Product {
 }
 
 class LimitedProduct extends Product {
+    readonly type = ProductType.Limited;
+
     constructor(
         id: number,
         name: string,
-        productType: ProductType,
         stock: number,
         price: number,
         public releaseDate: Date
     ) {
-        super(id, name, productType, stock, price);
+        super(id, name, stock, price);
         this.releaseDate = releaseDate;
     }
 
@@ -129,15 +128,16 @@ class LimitedProduct extends Product {
 }
 
 class SubscriptionProduct extends Product {
+    readonly type = ProductType.Subscription;
+
     constructor(
         id: number,
         name: string,
-        productType: ProductType,
         stock: number,
         price: number,
         public subscriptionPeriod: number
     ) {
-        super(id, name, productType, stock, price);
+        super(id, name, stock, price);
         this.subscriptionPeriod = subscriptionPeriod;
     }
 
@@ -160,18 +160,14 @@ class SubscriptionProduct extends Product {
 class ProductFactory {
     private static nextId = 1;
 
-    static create(payload: ProductDTO): Product {
-        const { name, productType, stock, price } = payload;
+    static create(
+        payload: ProductDTO
+    ): RegularProduct | LimitedProduct | SubscriptionProduct {
+        const { name, stock, price } = payload;
 
         switch (payload.productType) {
             case ProductType.Regular:
-                return new RegularProduct(
-                    this.nextId++,
-                    name,
-                    productType,
-                    stock,
-                    price
-                );
+                return new RegularProduct(this.nextId++, name, stock, price);
 
             case ProductType.Limited:
                 const { releaseDate } = payload;
@@ -179,7 +175,6 @@ class ProductFactory {
                 return new LimitedProduct(
                     this.nextId++,
                     name,
-                    productType,
                     stock,
                     price,
                     releaseDate
@@ -190,7 +185,6 @@ class ProductFactory {
                 return new SubscriptionProduct(
                     this.nextId++,
                     name,
-                    productType,
                     stock,
                     price,
                     subscriptionPeriod
@@ -204,12 +198,15 @@ class ProductFactory {
 }
 
 interface OrderItem {
-    productId: string;
+    productId: number;
     quantity: number;
 }
 
 class OrderService {
-    private products: Map<string, Product>;
+    private products: Map<
+        number,
+        RegularProduct | LimitedProduct | SubscriptionProduct
+    >;
 
     constructor() {
         this.products = new Map();
@@ -220,52 +217,14 @@ class OrderService {
         for (const item of items) {
             const product = this.products.get(item.productId);
 
-            if (!product) {
+            if (!product)
                 return {
                     success: false,
                     message: `상품을 찾을 수 없습니다: ${item.productId}`,
                 };
-            }
 
-            // 재고 확인 로직 - 여기가 문제!
-            if (product.type === 'regular') {
-                if (product.stock < item.quantity) {
-                    return {
-                        success: false,
-                        message: `재고 부족: ${product.name} (남은 재고: ${product.stock})`,
-                    };
-                }
-            } else if (product.type === 'limited') {
-                const now = new Date();
-                if (product.releaseDate && now < product.releaseDate) {
-                    return {
-                        success: false,
-                        message: `한정판은 ${product.releaseDate.toLocaleDateString()}부터 구매 가능합니다`,
-                    };
-                }
-                if (product.stock < item.quantity) {
-                    return {
-                        success: false,
-                        message: `한정판 재고 부족: ${product.name} (남은 재고: ${product.stock})`,
-                    };
-                }
-            } else if (product.type === 'subscription') {
-                if (item.quantity > 1) {
-                    return {
-                        success: false,
-                        message: '구독 상품은 1개만 구매 가능합니다',
-                    };
-                }
-                if (
-                    product.subscriptionPeriod &&
-                    product.subscriptionPeriod < 1
-                ) {
-                    return {
-                        success: false,
-                        message: '구독 기간이 유효하지 않습니다',
-                    };
-                }
-            }
+            const orderCheck = product.canOrder(item.quantity);
+            if (orderCheck.success === false) return orderCheck;
         }
 
         // 재고 차감
@@ -273,19 +232,15 @@ class OrderService {
             const product = this.products.get(item.productId);
             if (!product) continue;
 
-            if (product.type === 'regular') {
-                product.stock -= item.quantity;
-            } else if (product.type === 'limited') {
-                product.stock -= item.quantity;
-                if (product.stock === 0) {
-                    console.log(`한정판 품절: ${product.name}`);
-                }
-            } else if (product.type === 'subscription') {
-                // 구독 상품은 재고 차감하지 않음
+            product.deductStock(item.quantity);
+
+            if (product.type === ProductType.Limited && product.getStock === 0)
+                console.log(`한정판 품절: ${product.name}`);
+
+            if (product.type === ProductType.Subscription)
                 console.log(
                     `구독 시작: ${product.name}, 기간: ${product.subscriptionPeriod}개월`
                 );
-            }
         }
 
         return { success: true, message: '주문 완료' };
@@ -309,7 +264,8 @@ class OrderService {
         return report;
     }
 
-    addProduct(product: Product): void {
+    addProduct(payload: ProductDTO): void {
+        const product = ProductFactory.create(payload);
         this.products.set(product.id, product);
     }
 }
