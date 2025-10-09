@@ -55,6 +55,8 @@ abstract class Product {
 
     abstract afterOrder(): void;
 
+    abstract getReportLine(): void;
+
     isEmpty() {
         return this.stock === 0;
     }
@@ -98,6 +100,10 @@ class RegularProduct extends Product {
         if (this.isEmpty()) console.log(`재고 없음: ${this.name}`);
         else console.log(`${this.name}의 남은 재고: ${this.getStock}개`);
     }
+
+    getReportLine() {
+        return `${this.name}: ${this.stock}개 (일반 상품)`;
+    }
 }
 
 class LimitedProduct extends Product {
@@ -124,7 +130,7 @@ class LimitedProduct extends Product {
         else if (this.getStock < quantity)
             return {
                 success: false,
-                message: `재고 부족: ${this.name} (남은 재고: ${this.stock})`,
+                message: `재고 부족: ${this.name} (남은 재고: ${this.stock})\n`,
             };
 
         return { success: true, message: '' };
@@ -133,6 +139,11 @@ class LimitedProduct extends Product {
     afterOrder() {
         if (this.isEmpty()) console.log(`한정판 품절: ${this.name}`);
         else console.log(`${this.name}의 남은 재고: ${this.getStock}개`);
+    }
+
+    getReportLine() {
+        const status = this.getStock > 0 ? '판매중' : '품절';
+        return `${this.name}: ${this.stock}개 (한정판, ${status})\n`;
     }
 }
 
@@ -174,6 +185,10 @@ class SubscriptionProduct extends Product {
         console.log(
             `구독 시작: ${this.name}, 기간: ${this.subscriptionPeriod}개월`
         );
+    }
+
+    getReportLine() {
+        return `${this.name}: 구독 상품 (${this.subscriptionPeriod}개월 플랜)\n`;
     }
 }
 
@@ -264,14 +279,7 @@ class OrderService {
         let report = '=== 재고 현황 ===\n';
 
         this.products.forEach((product) => {
-            if (product.type === ProductType.Regular) {
-                report += `${product.name}: ${product.stock}개 (일반 상품)\n`;
-            } else if (product.type === ProductType.Limited) {
-                const status = product.stock > 0 ? '판매중' : '품절';
-                report += `${product.name}: ${product.stock}개 (한정판, ${status})\n`;
-            } else if (product.type === ProductType.Subscription) {
-                report += `${product.name}: 구독 상품 (${product.subscriptionPeriod}개월 플랜)\n`;
-            }
+            report += product.getReportLine();
         });
 
         return report;
