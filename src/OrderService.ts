@@ -251,12 +251,12 @@ class OrderService {
         let report = '=== 재고 현황 ===\n';
 
         this.products.forEach((product) => {
-            if (product.type === 'regular') {
+            if (product.type === ProductType.Regular) {
                 report += `${product.name}: ${product.stock}개 (일반 상품)\n`;
-            } else if (product.type === 'limited') {
+            } else if (product.type === ProductType.Limited) {
                 const status = product.stock > 0 ? '판매중' : '품절';
                 report += `${product.name}: ${product.stock}개 (한정판, ${status})\n`;
-            } else if (product.type === 'subscription') {
+            } else if (product.type === ProductType.Subscription) {
                 report += `${product.name}: 구독 상품 (${product.subscriptionPeriod}개월 플랜)\n`;
             }
         });
